@@ -128,6 +128,16 @@ public class SoftAPTransport implements Transport {
     }
 
     /***
+     * Send data relating to device configurations
+     * @param path path of the config endpoint.
+     * @param data config data to be sent
+     * @param milliseconds delay millim seconds
+     * @param listener listener implementation which receives events when response is received.
+     */
+    @Override
+    public void sendConfigDataDelayReceive(String path, byte[] data, long milliseconds, ResponseListener listener) { }
+
+    /***
      * HTTP implementation of the Transport protocol
      * @param path path of the config endpoint.
      * @param data config data to be sent

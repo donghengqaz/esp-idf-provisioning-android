@@ -696,6 +696,11 @@ public class ESPDevice {
 
                 processStartScanResponse(returnData);
 
+                try {
+                    sleep(5000); // Wait for Wi-Fi scan done
+                } catch (InterruptedException e) {
+                }
+
                 byte[] getScanStatusCmd = MessengeHelper.prepareGetWiFiScanStatusMsg();
                 session.sendDataToDevice(ESPConstants.HANDLER_PROV_SCAN, getScanStatusCmd, new ResponseListener() {
 

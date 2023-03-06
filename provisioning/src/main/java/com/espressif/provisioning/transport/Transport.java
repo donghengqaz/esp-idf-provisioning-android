@@ -30,4 +30,13 @@ public interface Transport {
      * @param listener listener implementation which receives events when response is received.
      */
     void sendConfigData(String path, byte[] data, ResponseListener listener);
+
+    /***
+     * Send data relating to device configurations
+     * @param path path of the config endpoint.
+     * @param data config data to be sent
+     * @param milliseconds delay milliseconds
+     * @param listener listener implementation which receives events when response is received.
+     */
+    void sendConfigDataDelayReceive(String path, byte[] data, long milliseconds, ResponseListener listener);
 }

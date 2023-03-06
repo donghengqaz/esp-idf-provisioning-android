@@ -39,6 +39,8 @@ import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -66,6 +68,33 @@ public class BLETransport implements Transport {
     public ArrayList<String> deviceCapabilities = new ArrayList<>();
     public String versionInfo;
 
+    private long receive_delay_milliseconds = 0;
+    private BluetoothGattCharacteristic recv_characteristic;
+    private Timer recv_timer = null;
+    private TimerTask recv_timer_task = null;
+
+    private void start_timer(long milliseconds) {
+        if (recv_timer != null) {
+            recv_timer.cancel();
+            recv_timer = null;
+        }
+
+        if (recv_timer_task != null) {
+            recv_timer_task.cancel();
+            recv_timer_task = null;
+        }
+
+        recv_timer = new Timer();
+        recv_timer_task = new TimerTask() {
+            @Override
+            public void run() {
+                bluetoothGatt.readCharacteristic(recv_characteristic);
+            }
+        };
+
+        recv_timer.schedule(recv_timer_task, milliseconds);
+    }
+
     /**
      * Create BLETransport implementation
      *
@@ -77,15 +106,15 @@ public class BLETransport implements Transport {
         this.dispatcherThreadPool = Executors.newSingleThreadExecutor();
     }
 
-    /**
-     * BLE implementation of Transport protocol
-     *
-     * @param path     path of the config endpoint.
-     * @param data     config data to be sent
+    /***
+     * Send data relating to device configurations
+     * @param path path of the config endpoint.
+     * @param data config data to be sent
+     * @param milliseconds delay milliseconds
      * @param listener listener implementation which receives events when response is received.
      */
     @Override
-    public void sendConfigData(String path, byte[] data, ResponseListener listener) {
+    public void sendConfigDataDelayReceive(String path, byte[] data, long milliseconds, ResponseListener listener) {
 
         if (uuidMap.containsKey(path)) {
 
@@ -100,6 +129,7 @@ public class BLETransport implements Transport {
                     this.transportToken.acquire();
                     characteristic.setValue(data);
                     bluetoothGatt.writeCharacteristic(characteristic);
+                    receive_delay_milliseconds = milliseconds;
                     currentResponseListener = listener;
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -124,6 +154,18 @@ public class BLETransport implements Transport {
                 currentResponseListener.onFailure(new RuntimeException("Characteristic is not available for given path."));
             }
         }
+    }
+
+    /**
+     * BLE implementation of Transport protocol
+     *
+     * @param path     path of the config endpoint.
+     * @param data     config data to be sent
+     * @param listener listener implementation which receives events when response is received.
+     */
+    @Override
+    public void sendConfigData(String path, byte[] data, ResponseListener listener) {
+        sendConfigDataDelayReceive(path, data, 0, listener);
     }
 
     /**
@@ -371,7 +413,13 @@ public class BLETransport implements Transport {
             super.onCharacteristicWrite(gatt, characteristic, status);
 
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                bluetoothGatt.readCharacteristic(characteristic);
+                if (receive_delay_milliseconds > 0) {
+                    recv_characteristic = characteristic;
+                    start_timer(receive_delay_milliseconds);
+                    receive_delay_milliseconds = 0;
+                } else {
+                    bluetoothGatt.readCharacteristic(characteristic);
+                }
             } else {
                 if (currentResponseListener != null) {
                     currentResponseListener.onFailure(new Exception("Write to BLE failed"));

@@ -29,6 +29,7 @@ public class Session {
     private Transport transport;
     private Security security;
     private boolean isSessionEstablished;
+    private int step = 0;
 
     /**
      * Initialize Session object with Transport and Security interface implementations
@@ -88,8 +89,15 @@ public class Session {
                     sessionListener.OnSessionEstablished();
                 }
             } else {
-
-                transport.sendConfigData(ESPConstants.HANDLER_PROV_SESSION, request, new ResponseListener() {
+                long milliseconds = 0;
+                /* wait for SRP calculation done */
+                if (step == 0) {
+                    milliseconds = 3500;
+                } else if (step == 1) {
+                    milliseconds = 1000;
+                }
+                step += 1;
+                transport.sendConfigDataDelayReceive(ESPConstants.HANDLER_PROV_SESSION, request, milliseconds, new ResponseListener() {
 
                     @Override
                     public void onSuccess(byte[] returnData) {
